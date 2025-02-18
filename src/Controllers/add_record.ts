@@ -1,12 +1,12 @@
-import { User } from "../Models/User";
-import { MyContext } from "../types/MyContext";
+import {User} from "../Models/User";
+import {MyContext} from "../types/MyContext";
 
 export const addRecordHandler = async (ctx: MyContext) => {
   if (!ctx.session) {
     ctx.session = {};
   }
 
-  const user = await User.findOne({ telegramId: ctx.from!.id });
+  const user = await User.findOne({telegramId: ctx.from!.id});
 
   if (!user) {
     await ctx.reply("❌ Ви не зареєстровані. Використайте команду /register.");
@@ -22,7 +22,7 @@ export const addRecordHandler = async (ctx: MyContext) => {
 };
 
 export const handleAddRecord = async (ctx: MyContext) => {
-  const user = await User.findOne({ telegramId: ctx.from!.id });
+  const user = await User.findOne({telegramId: ctx.from!.id});
 
   if (!user) {
     await ctx.reply("❌ Ви не зареєстровані.");
@@ -36,45 +36,33 @@ export const handleAddRecord = async (ctx: MyContext) => {
     return;
   }
 
+  const currentDate = new Date().toISOString().split("T")[0];
+  let existingRecord = user.records.find(record => record.date === currentDate) ?? {
+    date: currentDate,
+    morning: {systolic: 0, diastolic: 0, pulse: 0},
+    evening: {systolic: 0, diastolic: 0, pulse: 0},
+  }
+
+
   if (ctx.session.step === "WAITING_MORNING_BP") {
     const bpMatch = messageText.match(/^(\d{2,3})\/(\d{2,3})$/);
     if (!bpMatch) {
-      await ctx.reply(
-        "❌ Невірний формат. Введіть у форматі Систолічний/Діастолічний (наприклад: 120/80)."
-      );
+      await ctx.reply("❌ Невірний формат. Введіть у форматі Систолічний/Діастолічний (наприклад: 120/80). ");
       return;
     }
 
-    let lastRecord = user.records.pop();
-    ctx.session.userData!.records!.push({
-      date: new Date().toISOString().split("T")[0],
-      morning: {
-        systolic: parseInt(bpMatch[1]),
-        diastolic: parseInt(bpMatch[2]),
-        pulse: 0,
-      },
-      evening: {
-        systolic: 0,
-        diastolic: 0,
-        pulse: 0,
-      },
-    });
+    existingRecord.morning!.systolic = Number(bpMatch[1]);
+    existingRecord.morning!.diastolic = Number(bpMatch[2]);
     ctx.session.step = "WAITING_MORNING_PULSE";
     await ctx.reply("💓 Введіть ранковий пульс:");
   } else if (ctx.session.step === "WAITING_MORNING_PULSE") {
-    const pulse = parseInt(messageText);
-    if (isNaN(pulse) || pulse < 30 || pulse > 200) {
-      await ctx.reply(
-        "❌ Невірне значення пульсу. Введіть число від 30 до 200."
-      );
+    if (isNaN(Number(messageText)) || Number(messageText) < 30 || Number(messageText) > 200) {
+      await ctx.reply("❌ Невірне значення пульсу. Введіть число від 30 до 200.");
       return;
     }
-
-    ctx.session.userData!.records!.morning!.pulse = pulse;
+    existingRecord.morning!.pulse = Number(messageText);
     ctx.session.step = "WAITING_EVENING_BP";
-    await ctx.reply(
-      "🌆 Введіть вечірній артеріальний тиск у форматі Систолічний/Діастолічний (наприклад: 120/80):"
-    );
+    await ctx.reply("🌆 Введіть вечірній артеріальний тиск у форматі Систолічний/Діастолічний (наприклад: 120/80):");
   } else if (ctx.session.step === "WAITING_EVENING_BP") {
     const bpMatch = messageText.match(/^(\d{2,3})\/(\d{2,3})$/);
     if (!bpMatch) {
@@ -84,33 +72,18 @@ export const handleAddRecord = async (ctx: MyContext) => {
       return;
     }
 
-    ctx.session.userData!.evening = {
-      systolic: parseInt(bpMatch[1]),
-      diastolic: parseInt(bpMatch[2]),
-      pulse: 0,
-    };
+    existingRecord.evening!.systolic = Number(bpMatch[1]);
+    existingRecord.evening!.diastolic = Number(bpMatch[2]);
     ctx.session.step = "WAITING_EVENING_PULSE";
     await ctx.reply("💓 Введіть вечірній пульс:");
   } else if (ctx.session.step === "WAITING_EVENING_PULSE") {
-    const pulse = parseInt(messageText);
-    if (isNaN(pulse) || pulse < 30 || pulse > 200) {
-      await ctx.reply(
-        "❌ Невірне значення пульсу. Введіть число від 30 до 200."
-      );
+    if (isNaN(Number(messageText)) || Number(messageText) < 30 || Number(messageText) > 200) {
+      await ctx.reply("❌ Невірне значення пульсу. Введіть число від 30 до 200.");
       return;
     }
 
-    ctx.session.userData!.evening!.pulse = pulse;
-
-    const { morning, evening } = ctx.session.userData!;
-    user.records.push({
-      date: new Date().toISOString().split("T")[0],
-      morning,
-      evening,
-    });
-
+    existingRecord.evening!.pulse = Number(messageText);
     await user.save();
-
     await ctx.reply("✅ Дані успішно збережені!");
     ctx.session.step = null;
     ctx.session.userData = {};

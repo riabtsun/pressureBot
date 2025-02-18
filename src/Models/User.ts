@@ -7,10 +7,12 @@ const UserSchema = new mongoose.Schema({
   records: [
     {
       date: String,
-      morningBP: String,
-      morningPulse: String,
-      eveningBP: String,
-      eveningPulse: String,
+      morning: { systolic: Number, diastolic: Number, pulse: Number },
+      evening: { systolic: Number, diastolic: Number, pulse: Number },
+      // morningBP: String,
+      // morningPulse: String,
+      // eveningBP: String,
+      // eveningPulse: String,
     },
   ],
 });

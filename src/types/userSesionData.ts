@@ -1,4 +1,4 @@
-interface Measurement {
+export interface Measurement {
   date: string;
   morning: {
     systolic: number;
